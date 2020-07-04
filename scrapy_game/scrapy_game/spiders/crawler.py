@@ -12,9 +12,9 @@ class ScrapyGameCralwer(scrapy.Spider):
     #['https://3dprintingindustry.com/news/print-parts-launches-on-demand-additive-manufacturing-service-for-performance-parts-157849/']
 
     def __init__(self):
-        self.social_domains = {'twitter': 'http[s]*://[w]*\.twitter\.com',
-                        'linkedin': 'http[s]*://[w]*\.linkedin\.com/in',
-                        'facebook': 'http[s]*://[w]*\.facebook\.com',
+        self.social_domains = {'twitter': 'http[s]*://(www\.)?twitter\.com',
+                        'linkedin': 'http[s]*://(www\.)?linkedin\.com/in',
+                        'facebook': 'http[s]*://(www\.)?facebook\.com',
                         'email': 'mailto:'
                     }
         self.table = pd.read_csv('./scrpay_game_input.csv', encoding = 'utf-8')
@@ -96,10 +96,10 @@ class ScrapyGameCralwer(scrapy.Spider):
     def matchLink(self, link, cur_domain):
         domain_name = cur_domain.replace('https://', '')
         domain_name = domain_name.replace('.com', '')
-        match_twitter = re.search(self.social_domains['twitter']+"/(?!intent|"+domain_name+").+", link, re.IGNORECASE)
+        match_twitter = re.search(self.social_domains['twitter']+"/(?!intent|share|"+domain_name+").+", link, re.IGNORECASE)
         match_linkedin = re.search(self.social_domains['linkedin']+"/(?!shareArticle).+", link, re.IGNORECASE)
         match_facebook = re.search(self.social_domains['facebook']+"/(?!share|pages|dialog|"+domain_name+").+", link, re.IGNORECASE)
-        match_email = re.search(self.social_domains['email']+"(?!"+domain_name+").+@.+", link, re.IGNORECASE)
+        match_email = re.search(self.social_domains['email']+"(?!"+domain_name+"|tips|contact).+@.+", link, re.IGNORECASE)
         if match_twitter or match_linkedin or match_facebook or match_email:
             return link
         else:

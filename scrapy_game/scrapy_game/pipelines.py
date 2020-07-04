@@ -20,5 +20,7 @@ class ScrapyGamePipeline:
 
     def process_item(self, item, spider):
         data = ItemAdapter(item)
+        data['contact_info'] = list(dict.fromkeys(data['contact_info']))
+        data['contact_info'] = '\n'.join(data['contact_info'])
         self.writer.writerow([data['Id'], data['url'], data['author_name'], data['contact_info']])
         return item
