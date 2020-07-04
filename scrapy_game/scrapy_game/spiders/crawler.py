@@ -8,24 +8,36 @@ class ScrapyGameCralwer(scrapy.Spider):
     load_table = pd.read_csv('./scrpay_game_input.csv', encoding = 'utf-8')
     name = 'ScrapyGame'
     start_urls = load_table.iloc[:, 1].to_list()
+    #['https://archpaper.com/2019/06/robert-mckinley-shoppable-bungalow-long-island-montauk/']
+    #['https://3dprintingindustry.com/news/print-parts-launches-on-demand-additive-manufacturing-service-for-performance-parts-157849/']
 
     def __init__(self):
-        self.domains = {'twitter': 'http[s]*://[w]*\.twitter\.com',
+        self.social_domains = {'twitter': 'http[s]*://[w]*\.twitter\.com',
                         'linkedin': 'http[s]*://[w]*\.linkedin\.com/in',
-                        'facebook': 'http[s]*://[w]*\.facebook\.com'
+                        'facebook': 'http[s]*://[w]*\.facebook\.com',
+                        'email': 'mailto:'
                     }
         self.table = pd.read_csv('./scrpay_game_input.csv', encoding = 'utf-8')
 
     def parse(self, response):
+        """DEBUG"""
+        print('=============================================')
+        #print(response.url)
+
         """Create Entries for Current Website"""
         Entries = ScrapyGameItem()
         Entries['url'] = response.url
         Entries['contact_info'] = []
         curId = self.table.loc[self.table['url']==response.url, ['id']]
         if curId.empty:
-            addWWW = response.url
-            addWWW = addWWW[:8] + 'www.' + addWWW[8:]
-            curId = self.table.loc[self.table['url']==addWWW, ['id']]
+            if str(response.url).find('www.') == -1:
+                addWWW = response.url
+                addWWW = addWWW[:8] + 'www.' + addWWW[8:]
+                curId = self.table.loc[self.table['url']==addWWW, ['id']]
+            else:
+                rmWWW = response.url
+                rmWWW = rmWWW[:8]+rmWWW[12:]
+                curId = self.table.loc[self.table['url']==rmWWW, ['id']]
         if not curId.empty:
             curId = curId.values[0][0]
             Entries['Id'] = curId
@@ -50,10 +62,10 @@ class ScrapyGameCralwer(scrapy.Spider):
         author_url_www = cur_domain_www+'.*[Aa]uthor.*'
         
         """Find From Author href Tag"""
-        names_author = response.xpath('//a[contains(@href, "author")]/text()').getall()
-        names_autor = response.xpath('//a[contains(@href, "autor")]/text()').getall()
+        names_author = response.xpath('//a[contains(@href, "author") or contains(@href, "Author")]/text()').getall()
+        names_autor = response.xpath('//a[contains(@href, "autor") or contains(@href, "Author")]/text()').getall()
         #print('#######################################')
-        #print(names)
+        #print(names_author)
         if len(names_author) > 0:
             for name in names_author:
                 if self.is_valid(name):
@@ -67,7 +79,32 @@ class ScrapyGameCralwer(scrapy.Spider):
                     FOUND_AUTHOR = True
                     break
         
+
+
+        """Find Social Links for Authors"""
+        links = response.xpath('//*[contains(@href, "facebook") or contains(@href, "twitter") or contains(@href, linkedin) or contains(@href, "mailto")]/@href').getall()
+        if len(links) > 0:    
+            for link in links:
+                result = self.matchLink(link, cur_domain)
+                if result:
+                    Entries['contact_info'].append(result)
+                    FOUND_CONTACT = True
+        Entries['contact_info'] = list(dict.fromkeys(Entries['contact_info']))
         return Entries
+
+
+    def matchLink(self, link, cur_domain):
+        domain_name = cur_domain.replace('https://', '')
+        domain_name = domain_name.replace('.com', '')
+        match_twitter = re.search(self.social_domains['twitter']+"/(?!intent|"+domain_name+").+", link, re.IGNORECASE)
+        match_linkedin = re.search(self.social_domains['linkedin']+"/(?!shareArticle).+", link, re.IGNORECASE)
+        match_facebook = re.search(self.social_domains['facebook']+"/(?!share|pages|dialog|"+domain_name+").+", link, re.IGNORECASE)
+        match_email = re.search(self.social_domains['email']+"(?!"+domain_name+").+@.+", link, re.IGNORECASE)
+        if match_twitter or match_linkedin or match_facebook or match_email:
+            return link
+        else:
+            return None
+
 
 
     def is_valid(self, name):
