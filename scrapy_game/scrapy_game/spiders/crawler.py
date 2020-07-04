@@ -8,6 +8,7 @@ class ScrapyGameCralwer(scrapy.Spider):
     load_table = pd.read_csv('./scrpay_game_input.csv', encoding = 'utf-8')
     name = 'ScrapyGame'
     start_urls = load_table.iloc[:, 1].to_list()
+    #['https://303magazine.com/2019/06/italian-speakeasy-sotto-voce-opens-below-jovaninas-broken-italian/']
     #['https://archpaper.com/2019/06/robert-mckinley-shoppable-bungalow-long-island-montauk/']
     #['https://3dprintingindustry.com/news/print-parts-launches-on-demand-additive-manufacturing-service-for-performance-parts-157849/']
 
@@ -78,8 +79,9 @@ class ScrapyGameCralwer(scrapy.Spider):
                     Entries['author_name'] = name
                     FOUND_AUTHOR = True
                     break
-        
 
+        if FOUND_AUTHOR == False:
+            return
 
         """Find Social Links for Authors"""
         links = response.xpath('//*[contains(@href, "facebook") or contains(@href, "twitter") or contains(@href, linkedin) or contains(@href, "mailto")]/@href').getall()
@@ -89,7 +91,33 @@ class ScrapyGameCralwer(scrapy.Spider):
                 if result:
                     Entries['contact_info'].append(result)
                     FOUND_CONTACT = True
-        Entries['contact_info'] = list(dict.fromkeys(Entries['contact_info']))
+        
+
+        """Dig One More Page for the Author"""
+        headers = {'USER_AGENT': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.87 Safari/537.36'}
+        author_page = response.xpath('//a[contains(@href, "author") or contains(@href, "Author")][contains(text(),\"'+Entries['author_name']+'\")]/@href').get()
+        autor_page = response.xpath('//a[contains(@href, "autor") or contains(@href, "Autor")][contains(text(),\"'+Entries['author_name']+'\")]/@href').get()
+        if author_page:
+            if author_page.find('http') == -1:
+                author_page = cur_domain + author_page
+            yield scrapy.Request(url=author_page, callback=self.parseAuthorPage, headers=headers, dont_filter=True, cb_kwargs=dict(Entries=Entries, cur_domain=cur_domain))
+        elif autor_page:
+            if autor_page.find('http') == -1:
+                autor_page = cur_domain + autor_page
+            yield scrapy.Request(url=autor_page, callback=self.parseAuthorPage, headers=headers, dont_filter=True, cb_kwargs=dict(Entries=Entries, cur_domain=cur_domain))
+        else: 
+            #print('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
+            yield Entries
+
+
+    def parseAuthorPage(self, response, Entries, cur_domain):
+        #print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+        links = response.xpath('//*[contains(@href, "facebook") or contains(@href, "twitter") or contains(@href, linkedin) or contains(@href, "mailto")]/@href').getall()
+        if len(links) > 0:    
+            for link in links:
+                result = self.matchLink(link, cur_domain)
+                if result:
+                    Entries['contact_info'].append(result)
         return Entries
 
 
