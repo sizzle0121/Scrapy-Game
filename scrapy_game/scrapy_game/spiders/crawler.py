@@ -8,6 +8,7 @@ class ScrapyGameCralwer(scrapy.Spider):
     load_table = pd.read_csv('./scrpay_game_input.csv', encoding = 'utf-8')
     name = 'ScrapyGame'
     start_urls = load_table.iloc[:, 1].to_list()
+    #['https://arstechnica.com/information-technology/2019/06/apple-moves-mac-pro-production-from-texas-to-china/']
     #['https://303magazine.com/2019/06/italian-speakeasy-sotto-voce-opens-below-jovaninas-broken-italian/']
     #['https://archpaper.com/2019/06/robert-mckinley-shoppable-bungalow-long-island-montauk/']
     #['https://3dprintingindustry.com/news/print-parts-launches-on-demand-additive-manufacturing-service-for-performance-parts-157849/']
@@ -125,14 +126,41 @@ class ScrapyGameCralwer(scrapy.Spider):
         domain_name = cur_domain.replace('https://', '')
         domain_name = domain_name.replace('.com', '')
         match_twitter = re.search(self.social_domains['twitter']+"/(?!intent|share|"+domain_name+").+", link, re.IGNORECASE)
+        match_twitter = match_twitter and (link.find('/status/') == -1)
         match_linkedin = re.search(self.social_domains['linkedin']+"/(?!shareArticle).+", link, re.IGNORECASE)
-        match_facebook = re.search(self.social_domains['facebook']+"/(?!share|pages|dialog|"+domain_name+").+", link, re.IGNORECASE)
+        match_facebook = re.search(self.social_domains['facebook']+"/(?!share|pages|dialog|notes|"+domain_name+").+", link, re.IGNORECASE)
         match_email = re.search(self.social_domains['email']+"(?!"+domain_name+"|tips|contact).+@.+", link, re.IGNORECASE)
         if match_twitter or match_linkedin or match_facebook or match_email:
-            return link
+            if not match_email:
+                return self.domainFilter(link, domain_name)
+            else:
+                return link
         else:
             return None
 
+    def domainFilter(self, link, domain_name):
+        LINK = copy.deepcopy(link)
+        com = link.find('.com')
+        if link.find('linkedin') == -1:
+            link = link[com+5:]
+        else:
+            link = link[com+8:]
+        slash = link.find('/')
+        if slash != -1:
+            link = link[:slash]
+        domain_len = len(domain_name)
+        link_len = len(link)
+        L = [[0 for i in range(domain_len+1)] for j in range(link_len+1)]
+        for i in range(1, link_len+1):
+            for j in range(1, domain_len+1):
+                if link[i-1].lower() == domain_name[j-1].lower():
+                    L[i][j] = L[i-1][j-1] + 1
+                else:
+                    L[i][j] = max(L[i-1][j], L[i][j-1])
+        base = min(domain_len, link_len)
+        if (float(L[link_len][domain_len])/float(base)) >= 0.7:
+            return None
+        return LINK
 
 
     def is_valid(self, name):
