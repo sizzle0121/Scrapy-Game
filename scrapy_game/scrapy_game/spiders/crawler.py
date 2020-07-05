@@ -18,10 +18,6 @@ class ScrapyGameCralwer(scrapy.Spider):
         self.table = pd.read_csv('./scrpay_game_input.csv', encoding = 'utf-8')
 
     def parse(self, response):
-        """DEBUG"""
-        print('=============================================')
-        #print(response.url)
-
         """Create Entries for Current Website"""
         Entries = ScrapyGameItem()
         Entries['url'] = response.url
@@ -44,17 +40,7 @@ class ScrapyGameCralwer(scrapy.Spider):
         FOUND_AUTHOR = False
         FOUND_CONTACT = False
 
-        """Match Possible Tags"""
-        #author_tags = re.findall("class=\"[^<>]*[Aa]uthor[^<>]*\"", str(response.body))
-        #publishBy_tags = re.findall("class=\"[^<>]*[Pp]ublish[^<>]*\"", str(response.body))
-    
-        """Find from author_tags"""
-        #for author_tag in author_tags:
-        #    author_tag = author_tag.split("\"")
-        #    author_tag = author_tag[1]
-        #    author_tag = author_tag.replace(' ', '.')
-
-        "Possible URLs for Authors"
+        """Possible URLs for Authors"""
         cur_domain, cur_domain_www = self.getCurrentDomain(str(response.url))
         author_url = cur_domain+'.*[Aa]uthor.*'
         author_url_www = cur_domain_www+'.*[Aa]uthor.*'
@@ -97,7 +83,6 @@ class ScrapyGameCralwer(scrapy.Spider):
 
 
         if FOUND_AUTHOR == False:
-            #print('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
             return
 
         """Find Social Links for Authors"""

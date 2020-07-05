@@ -1,5 +1,5 @@
-# Scrapy Game
--------------------------------------------
+# Scrapy Game	
+
 Data Engineering Challenge of SparkAmplify
 
 
