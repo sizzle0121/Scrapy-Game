@@ -8,6 +8,7 @@ class ScrapyGameCralwer(scrapy.Spider):
     load_table = pd.read_csv('./scrpay_game_input.csv', encoding = 'utf-8')
     name = 'ScrapyGame'
     start_urls = load_table.iloc[:, 1].to_list()
+    #['https://www.archpaper.com/2019/06/weiss-manfredi-reinvents-their-approach/']
     #['https://arstechnica.com/information-technology/2019/06/apple-moves-mac-pro-production-from-texas-to-china/']
     #['https://303magazine.com/2019/06/italian-speakeasy-sotto-voce-opens-below-jovaninas-broken-italian/']
     #['https://archpaper.com/2019/06/robert-mckinley-shoppable-bungalow-long-island-montauk/']
@@ -24,7 +25,7 @@ class ScrapyGameCralwer(scrapy.Spider):
     def parse(self, response):
         """DEBUG"""
         print('=============================================')
-        #print(response.url)
+        print(response.url)
 
         """Create Entries for Current Website"""
         Entries = ScrapyGameItem()
@@ -64,8 +65,8 @@ class ScrapyGameCralwer(scrapy.Spider):
         author_url_www = cur_domain_www+'.*[Aa]uthor.*'
         
         """Find From Author href Tag"""
-        names_author = response.xpath('//a[contains(@href, "author") or contains(@href, "Author")]/text()').getall()
-        names_autor = response.xpath('//a[contains(@href, "autor") or contains(@href, "Author")]/text()').getall()
+        names_author = response.xpath('//a[contains(@href, "author") or contains(@href, "Author") or contains(@href, "authors") or contains(@href, "Authors")]/descendant-or-self::*/text()').getall()
+        names_autor = response.xpath('//a[contains(@href, "autor") or contains(@href, "Autor")]/descendant-or-self::*/text()').getall()
         #print('#######################################')
         #print(names_author)
         if len(names_author) > 0:
@@ -82,6 +83,7 @@ class ScrapyGameCralwer(scrapy.Spider):
                     break
 
         if FOUND_AUTHOR == False:
+            print('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
             return
 
         """Find Social Links for Authors"""
@@ -96,7 +98,7 @@ class ScrapyGameCralwer(scrapy.Spider):
 
         """Dig One More Page for the Author"""
         headers = {'USER_AGENT': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.87 Safari/537.36'}
-        author_page = response.xpath('//a[contains(@href, "author") or contains(@href, "Author")][contains(text(),\"'+Entries['author_name']+'\")]/@href').get()
+        author_page = response.xpath('//a[contains(@href, "author") or contains(@href, "Author") or contains(@href, "authors") or contains(@href, "Authors")][contains(text(),\"'+Entries['author_name']+'\")]/@href').get()
         autor_page = response.xpath('//a[contains(@href, "autor") or contains(@href, "Autor")][contains(text(),\"'+Entries['author_name']+'\")]/@href').get()
         if author_page:
             if author_page.find('http') == -1:
@@ -107,7 +109,6 @@ class ScrapyGameCralwer(scrapy.Spider):
                 autor_page = cur_domain + autor_page
             yield scrapy.Request(url=autor_page, callback=self.parseAuthorPage, headers=headers, dont_filter=True, cb_kwargs=dict(Entries=Entries, cur_domain=cur_domain))
         else: 
-            #print('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
             yield Entries
 
 
@@ -125,7 +126,7 @@ class ScrapyGameCralwer(scrapy.Spider):
     def matchLink(self, link, cur_domain):
         domain_name = cur_domain.replace('https://', '')
         domain_name = domain_name.replace('.com', '')
-        match_twitter = re.search(self.social_domains['twitter']+"/(?!intent|share|"+domain_name+").+", link, re.IGNORECASE)
+        match_twitter = re.search(self.social_domains['twitter']+"/(?!intent|share|hashtag|"+domain_name+").+", link, re.IGNORECASE)
         match_twitter = match_twitter and (link.find('/status/') == -1)
         match_linkedin = re.search(self.social_domains['linkedin']+"/(?!shareArticle).+", link, re.IGNORECASE)
         match_facebook = re.search(self.social_domains['facebook']+"/(?!share|pages|dialog|notes|"+domain_name+").+", link, re.IGNORECASE)
@@ -166,15 +167,23 @@ class ScrapyGameCralwer(scrapy.Spider):
     def is_valid(self, name):
         if not re.search('^[a-zA-Záéíóúýàèìòùâêîôûäëïöüÿ]+[.]*([- ]+[a-zA-Záéíóúýàèìòùâêîôûäëïöüÿ]+[.]*){1,2}$', name):
             return False
-        by = re.search('^[Bb]y[ ]*$', name)
-        publish = re.search('.*[Pp]ublish.*', name)
-        post = re.search('.*[Pp]ost.*', name)
-        written = re.search('.*[Ww]ritten.*', name)
-        sign = re.search('[Ss]ign [Uu]p|[Ii]n', name)
-        subscribe = re.search('subscribe.*', name, re.IGNORECASE)
-        getStart = re.search('get start.*', name, re.IGNORECASE)
-        pro = re.search('^[Pp]ro[ ]*$', name)
-        return not by and not publish and not post and not written and not sign and not subscribe and not getStart and not pro
+        #by = re.search('^[Bb]y[ ]*$', name)
+        publish = re.search('^[Pp]ublish(ed)? ([Bb]y|[Oo]n)$', name)
+        post = re.search('^[Pp]ost ([Bb]y|[Oo]n)$', name)
+        written = re.search('^[Ww]ritten ([Bb]y|[Oo]n)$', name)
+        sign = re.search('h^[Ss]ign ([Uu]p|[Ii]n)$', name)
+        subscribe = re.search('subscribe', name, re.IGNORECASE)
+        getStart = re.search('get start', name, re.IGNORECASE)
+        #pro = re.search('^[Pp]ro[ ]*$', name)
+        #print(by)
+        #print(publish)
+        #print(post)
+        #print(written)
+        #print(sign)
+        #print(subscribe)
+        #print(getStart)
+        #print(pro)
+        return not publish and not post and not written and not sign and not subscribe and not getStart #and not pro
 
 
     def getCurrentDomain(self, current_url):
